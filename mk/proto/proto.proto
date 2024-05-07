@@ -1,0 +1,12 @@
+syntax = "proto3";
+option go_package = "./";
+
+package proto;
+
+service LiveChat {
+    rpc ChatStream(stream LiveChatData) returns (stream LiveChatData) {}
+}
+
+message LiveChatData{
+    string message = 2;    
+}
