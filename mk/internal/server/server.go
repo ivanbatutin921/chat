@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	pb "root/mk/proto"
+	bd "root/mk/internal/database"
+	model "root/mk/internal/model"
 )
 
 type Server struct {
@@ -26,6 +28,8 @@ func (s *Server) ChatStream(stream pb.LiveChat_ChatStreamServer) error {
 		if err != nil {
 			return err
 		}
+		//260~270 ms это ммм(((
+		bd.DB.DB.Create(&model.Message{Message: data.Message})
 	}
 }
 

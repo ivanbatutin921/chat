@@ -14,6 +14,7 @@ import (
 
 func main() {
 	db.Connect()
+	//db.Migration()
 
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
