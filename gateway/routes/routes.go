@@ -15,16 +15,13 @@ func ServiceHandler(mk pb.LiveChatClient) *ChatServiceHandler {
 	return &ChatServiceHandler{mk: mk}
 }
 
-
 func (c *ChatServiceHandler) HandleChatStream(ctx *fiber.Ctx) error {
 	var data pb.LiveChatData
 	if err := ctx.BodyParser(&data); err != nil {
 		return err
 	}
-	
-	
-	
-	stream, err := c.mk.ChatStream()
+
+	stream, err := c.mk.ChatStream(ctx.Context())
 	if err != nil {
 		return err
 	}
