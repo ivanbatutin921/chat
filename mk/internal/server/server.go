@@ -3,9 +3,9 @@ package server
 import (
 	"errors"
 
-	pb "root/mk/proto"
 	bd "root/mk/internal/database"
 	model "root/mk/internal/model"
+	pb "root/mk/proto"
 )
 
 type Server struct {
@@ -32,4 +32,3 @@ func (s *Server) ChatStream(stream pb.LiveChat_ChatStreamServer) error {
 		bd.DB.DB.Create(&model.Message{Message: data.Message})
 	}
 }
-
