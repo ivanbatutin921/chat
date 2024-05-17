@@ -1,41 +1,41 @@
 package server
 
 import (
+	"fmt"
+	"log"
 	pb "root/mk/proto"
+	"time"
 )
 
 type Server struct {
 	pb.UnimplementedLiveChatServer
 }
 
-func (s *Server) ChatStream(stream pb.LiveChat_ChatStreamServer) (*pb.LiveChatData, error) {
+func (s *Server) ClientStream(stream pb.LiveChat_ChatStreamClient) error {
+	done := make(chan bool)
+
+	// Send messages to the server
+	go func() {
+		for i := 0; i < 5; i++ {
+			message := fmt.Sprintf("Message %d from client", i+1)
+			err := stream.Send(&pb.LiveChatData{Message: message})
+			if err != nil {
+				log.Fatalf("error sending message: %v", err)
+			}
+			time.Sleep(1 * time.Second)
+		}
+		done <- true
+	}()
+
+	// Receive messages from the server
 	for {
-		var data pb.LiveChatData
-		err := stream.RecvMsg(&data)
+		msg, err := stream.Recv()
 		if err != nil {
-			return nil, err
+			log.Fatalf("error receiving message: %v", err)
 		}
-
-		if data.Message == "" {
-			return &pb.LiveChatData{Message: "{\"ошибка\":\"сообщение не может быть пустым\"}"}, nil
-
-		}
-
-		err = stream.Send(&pb.LiveChatData{Message: data.Message})
-		if err != nil {
-			return nil, err
-		}
-		///return &pb.LiveChatData{Message: data.Message},nil
+		log.Printf("Received message from server: %s", msg.GetMessage())
 	}
-}
 
-// func (s *Server) CreateUser(ctx context.Context, req *pb.User) (*pb.User, error) {
-// 	err := db.DB.DB.Create(&model.User{Name: req.Name, Email: req.Email})
-// 	if err.Error != nil {
-// 		log.Fatal(err.Error)
-// 	}
-// 	return &pb.User{
-// 			Name:  req.Name,
-// 			Email: req.Email},
-// 		nil
-// }
+	<-done
+	return nil
+}

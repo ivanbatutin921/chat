@@ -3,56 +3,30 @@ package main
 import (
 	"context"
 	"log"
-
-	pb "root/mk/proto"
+	"time"
 
 	"google.golang.org/grpc"
+	pb "root/mk/proto"
 )
 
-type client struct {
-	pb.UnimplementedLiveChatServer
-}
-
-func (s *client) ClientStream(stream pb.LiveChat_ChatStreamClient) error {
-	for {
-		req, err := stream.Recv()
-		if err != nil {
-			return err
-		}
-		err = stream.Send(&pb.LiveChatData{Message: req.Message})
-		if err != nil {
-			return err
-		}
-	}
-}
-
 func main() {
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+	conn, err := grpc.Dial("localhost:9090", grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		log.Fatalf("Failed to connect: %v", err)
 	}
 	defer conn.Close()
-	client := pb.NewLiveChatClient(conn)
 
-	stream, err := client.ChatStream(context.Background())
+	client := pb.NewLiveChatClient(conn)
+	stream, err := client.SendMessage(context.Background())
 	if err != nil {
-		log.Fatalf("error receiving message: %v", err)
+		log.Fatalf("Error creating stream: %v", err)
 	}
 
-	go func() {
-
-		err := stream.Send(&pb.LiveChatData{Message: "Hello, server!"})
-		if err != nil {
-			log.Fatalf("error sending message: %v", err)
-		}
-
-	}()
-
 	for {
-		msg, err := stream.Recv()
-		if err != nil {
-			log.Fatalf("error receiving message: %v", err)
+		msg := &pb.Message{Text: "Hello, server!"}
+		if err := stream.Send(msg); err != nil {
+			log.Fatalf("Error sending message: %v", err)
 		}
-		log.Printf("Received message: %s", msg.GetMessage())
+		time.Sleep(time.Second) // Отправляем сообщение каждую секунду
 	}
 }
