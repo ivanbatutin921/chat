@@ -10,9 +10,15 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+<<<<<<< HEAD
 type server struct{
 	pb.UnimplementedLiveChatServer
 }
+=======
+func main() {
+	db.Connect()
+	//db.Migration()
+>>>>>>> bae133bcdf1c7798d60b3a10fc7b1feceee3d39d
 
 func (s *server) SendMessage(stream pb.LiveChat_ChatStreamClient) error {
 	for {

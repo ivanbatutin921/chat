@@ -36,6 +36,6 @@ func Connect() (Data, error) {
 	DB = Data{
 		DB: db,
 	}
-	fmt.Println("connected")
+	fmt.Println("connected to bdshka")
 	return DB, nil
 }
