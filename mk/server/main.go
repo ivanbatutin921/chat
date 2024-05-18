@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"root/mk/internal/model"
 	pb "root/mk/proto"
 
 	"google.golang.org/grpc"
@@ -19,33 +20,32 @@ type Server struct {
 }
 
 func (s *Server) ChatStream(stream pb.LiveChat_ChatStreamServer) error {
-	clientID := atomic.AddInt32(&clientIdCounter, 1)
+    // Генерируем уникальный ID для нового клиента
+    NewClientId := atomic.AddInt32(&clientIdCounter,1) // Функция для генерации ID не показана
 
-	s.clientStreams.Store(clientID, stream)
+    // Регистрируем поток нового клиента
+    s.clientStreams.Store(NewClientId, model.ClientStream{Id: int32(NewClientId), Stream: stream})
 
-	defer s.clientStreams.Delete(clientID)
+    defer s.clientStreams.Delete(NewClientId) // Удаляем поток из хранилища при завершении
 
-	for {
-		in, err := stream.Recv()
-		if err != nil {
-			log.Printf("Client %v disconnected: %v", clientID, err)
-			return err
-		}
-
-		s.clientStreams.Range(func(key, value any) bool {
-			if key != clientID { // Отправка сообщения всем, кроме источника
-				otherStream, ok := value.(pb.LiveChat_ChatStreamServer)
-				if ok {
-					if sendErr := otherStream.Send(in); sendErr != nil {
-						log.Printf("Failed to send message to client %v: %v", key, sendErr)
-					}
-				}
-			}
-			return true
-		})
-	}
+    for {
+        in, err := stream.Recv()
+        if err != nil {
+            log.Printf("client %d disconnected: %v", NewClientId, err)
+            return err
+        }
+        // Перебираем все потоки и отправляем им полученное сообщение
+        s.clientStreams.Range(func(key, value any) bool {
+            clientStream, ok := value.(model.ClientStream)
+            if ok && clientStream.Id != int32(NewClientId) { // Не отправляем сообщение обратно отправителю
+                if err := clientStream.Stream.Send(in); err != nil {
+                    log.Printf("Failed to send message to client %d: %v", clientStream.Id, err)
+                }
+            }
+            return true
+        })
+    }
 }
-
 func main() {
 	lis, err := net.Listen("tcp", ":9090")
 	if err != nil {

@@ -1,18 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
-	"fmt"
 	"log"
-	"sync/atomic"
-	"time"
-
+	"os"
 	pb "root/mk/proto"
 
 	"google.golang.org/grpc"
 )
-
-var clientCount int32
 
 func main() {
 	conn, err := grpc.Dial("localhost:9090", grpc.WithInsecure())
@@ -27,23 +23,26 @@ func main() {
 		log.Fatalf("Error creating stream: %v", err)
 	}
 
+	// Обработка входящих сообщений
 	go func() {
 		for {
-			in, err := stream.Recv() // Получение сообщений от сервера
+			in, err := stream.Recv()
 			if err != nil {
-				log.Printf("Failed to receive: %v", err)
-				return
+				log.Fatalf("Failed to receive a message : %v", err)
 			}
-			log.Printf("Received message: %v", in.GetMessage())
+			log.Printf("Received message: %s", in.GetMessage())
 		}
 	}()
 
-	for {
-		// Отправка пользовательского сообщения
-		clientCount := atomic.AddInt32(&clientCount, 1)
-		if err := stream.Send(&pb.LiveChatData{Message: fmt.Sprintf("Client %d: Hello from client!", clientCount)}); err != nil {
+	// Чтение сообщений с консоли и отправка их
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		message := scanner.Text()
+		if err := stream.Send(&pb.LiveChatData{Message: message}); err != nil {
 			log.Fatalf("Failed to send a message: %v", err)
 		}
-		time.Sleep(5 * time.Second)
+	}
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("Error reading from stdin: %v", err)
 	}
 }
