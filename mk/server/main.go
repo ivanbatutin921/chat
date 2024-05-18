@@ -4,43 +4,48 @@ import (
 	"log"
 	"net"
 	"sync"
+	"sync/atomic"
 
-	model "root/mk/internal/model"
 	pb "root/mk/proto"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
+
+var clientIdCounter int32
 
 type Server struct {
 	pb.UnimplementedLiveChatServer
-	clientStreams sync.Map
+	clientStreams sync.Map // Использование sync.Map для хранения потоков
 }
 
 func (s *Server) ChatStream(stream pb.LiveChat_ChatStreamServer) error {
-	//получаем id откудато
-	NewClientId := 1
+	clientID := atomic.AddInt32(&clientIdCounter, 1)
 
-	//регестрируем поток клиента
-	s.clientStreams.Store(NewClientId, model.ClientStream{Id: int32(NewClientId), Stream: stream})
+	s.clientStreams.Store(clientID, stream)
+
+	defer s.clientStreams.Delete(clientID)
 
 	for {
 		in, err := stream.Recv()
 		if err != nil {
-			s.clientStreams.Delete(NewClientId)
+			log.Printf("Client %v disconnected: %v", clientID, err)
 			return err
 		}
+
 		s.clientStreams.Range(func(key, value any) bool {
-			clientStreams, ok := value.(model.ClientStream)
-			if ok && clientStreams.Id != int32(NewClientId) {
-				if err := clientStreams.Stream.Send(in); err != nil {
-					log.Println("Failed to send message:", err)
+			if key != clientID { // Отправка сообщения всем, кроме источника
+				otherStream, ok := value.(pb.LiveChat_ChatStreamServer)
+				if ok {
+					if sendErr := otherStream.Send(in); sendErr != nil {
+						log.Printf("Failed to send message to client %v: %v", key, sendErr)
+					}
 				}
 			}
 			return true
 		})
 	}
 }
+
 func main() {
 	lis, err := net.Listen("tcp", ":9090")
 	if err != nil {
@@ -49,7 +54,6 @@ func main() {
 
 	s := grpc.NewServer()
 	pb.RegisterLiveChatServer(s, &Server{})
-	reflection.Register(s)
 
 	log.Println("Server listening on port :9090")
 	if err := s.Serve(lis); err != nil {

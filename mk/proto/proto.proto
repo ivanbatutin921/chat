@@ -1,10 +1,18 @@
 syntax = "proto3";
+
 option go_package = "./";
 
 package proto;
 
+import "google/api/annotations.proto";
+
 service LiveChat {
-    rpc ChatStream(stream LiveChatData) returns (stream LiveChatData) {}
+  rpc ChatStream(stream LiveChatData) returns (stream LiveChatData) {
+    option (google.api.http) = {
+      post: "/stream"
+      body: "*"
+    };
+  }
 }
 
 message LiveChatData{
